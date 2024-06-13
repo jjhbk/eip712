@@ -3,15 +3,22 @@ import { useEffect, useState } from 'react';
 import { ethers } from 'ethers';
 import EIP712Verifier from '../artifacts/contracts/EIP712Verifier.sol/EIP712Verifier.json';
 
-const verifierAddress = '0xa34044262cC9Dad5791ED5bC8cD4AAf641829DB7';
+const verifierAddress = "0xcaF1f4e04486faFEee55A633E818b5Bf1bC7Ab1D";
+//"0xcaF1f4e04486faFEee55A633E818b5Bf1bC7Ab1D";
+//"0x848eb1a4977948109fa366a43107dc5d30a6668a"
+//'0xa34044262cC9Dad5791ED5bC8cD4AAf641829DB7';
 
 const Home = () => {
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
   const [account, setAccount] = useState(null);
-  const [message, setMessage] = useState('');
-  const [signature, setSignature] = useState('');
+  const [app, setApp] = useState('0x00Ea57108199F042EDe48CF3D4D555F8d7Af274A');
+  const [nonce, setnonce] = useState(126);
+  const [gasprice, setgasprice] = useState(1);
+  let utfencode = new TextEncoder();
+  const [data, setdata] = useState(utfencode.encode('hello'));
 
+  const [signature, setSignature] = useState('');
   useEffect(() => {
     if (window.ethereum) {
       const tempProvider = new ethers.BrowserProvider(window.ethereum);
@@ -33,22 +40,27 @@ const Home = () => {
     console.log((await provider.getNetwork()).chainId)
     if (signer) {
       const domain = {
-        name: 'Cartesi', //Unique domain
-        version: '1', //version of the signatures
+        name: 'CartesiPaio', //Unique domain
+        version: '0.0.1', //version of the signatures
         chainId: (await provider.getNetwork()).chainId,
         verifyingContract: verifierAddress,
       };
       // Schema for the messages defined for our application
       const types = {
-        Ticket: [
-          { name: 'eventName', type: 'string' },
-          { name: 'price', type: 'uint256' },
-        ],
+        SigningMessage: [
+          { name: 'app', type: 'address' },
+          { name: 'nonce', type: 'uint256' },
+          { name: 'max_gas_price', type: 'uint256' },
+          { name: 'data', type: 'bytes' }
+        ]
       };
 
       const value = {
-        eventName: message,
-        price: BigInt(1)
+        app: app,
+        nonce: BigInt(nonce),
+        max_gas_price: BigInt(gasprice),
+        data: data
+
       };
       console.log("Domain:", domain);
       console.log("Types:", types);
@@ -56,16 +68,13 @@ const Home = () => {
       const sig = await signer.signTypedData(domain, types, value);
       setSignature(sig);
       console.log(sig);
-      // const expectedSignerAddress = await signer.getAddress();
-      // const recoveredAddress = ethers.utils.verifyTypedData(domain, types, value, sig);
-      // console.log(recoveredAddress, expectedSignerAddress);
     }
   };
 
   const verifyMessage = async () => {
     const contract = new ethers.Contract(verifierAddress, EIP712Verifier.abi, provider);
     //    console.log(contract);
-    const resolvedAddress = await contract.getSigner(message, BigInt(1), signature);
+    const resolvedAddress = await contract.getSigner(app, nonce, gasprice, data, signature);
     console.log("Verification result:", resolvedAddress, account);
     alert(`Signature is valid: ${ethers.getAddress(resolvedAddress) === ethers.getAddress(account)}`);
   };
@@ -75,9 +84,30 @@ const Home = () => {
       <h1>EIP-712 Signing with MetaMask</h1>
       <div>
         <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Enter a message"
+          value={app}
+          onChange={(e) => setApp(e.target.value)}
+          placeholder="Enter a dapp address"
+        />
+      </div>
+      <div>
+        <textarea
+          value={nonce}
+          onChange={(e) => setnonce(e.target.value)}
+          placeholder="Enter a nonce"
+        />
+      </div>
+      <div>
+        <textarea
+          value={gasprice}
+          onChange={(e) => setgasprice(e.target.value)}
+          placeholder="Enter a gasprice"
+        />
+      </div>
+      <div>
+        <textarea
+          value={data}
+          onChange={(e) => setdata(e.target.value)}
+          placeholder="Enter a data"
         />
       </div>
       <button onClick={signMessage}>Sign Message</button>
