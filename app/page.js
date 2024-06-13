@@ -14,12 +14,11 @@ const Home = () => {
 
   useEffect(() => {
     if (window.ethereum) {
-      const tempProvider = new ethers.providers.Web3Provider(window.ethereum);
+      const tempProvider = new ethers.BrowserProvider(window.ethereum);
       setProvider(tempProvider);
-
       window.ethereum.request({ method: 'eth_requestAccounts' })
-        .then(accounts => {
-          setSigner(tempProvider.getSigner());
+        .then(async accounts => {
+          setSigner(await tempProvider.getSigner());
           setAccount(accounts[0]);
           alert(accounts[0])
         })
@@ -31,12 +30,12 @@ const Home = () => {
   }, []);
 
   const signMessage = async () => {
-    console.log(signer.getChainId())
+    console.log((await provider.getNetwork()).chainId)
     if (signer) {
       const domain = {
         name: 'EIP712Domain', //Unique domain
         version: '1', //version of the signatures
-        chainId: await signer.getChainId(),
+        chainId: (await provider.getNetwork()).chainId,
         verifyingContract: verifierAddress,
       };
       // Schema for the messages defined for our application
@@ -51,17 +50,23 @@ const Home = () => {
         from: account,
         message: message,
       };
-
-      const sig = await signer._signTypedData(domain, types, value);
+      console.log("Domain:", domain);
+      console.log("Types:", types);
+      console.log("Value:", value);
+      const sig = await signer.signTypedData(domain, types, value);
       setSignature(sig);
       console.log(sig);
+      // const expectedSignerAddress = await signer.getAddress();
+      // const recoveredAddress = ethers.utils.verifyTypedData(domain, types, value, sig);
+      // console.log(recoveredAddress, expectedSignerAddress);
     }
   };
 
   const verifyMessage = async () => {
-    const contract = new ethers.Contract(verifierAddress, EIP712Verifier, provider);
+    const contract = new ethers.Contract(verifierAddress, EIP712Verifier.abi, provider);
     //    console.log(contract);
     const isValid = await contract.verify(account, { from: account, message: message }, signature);
+    console.log("Verification result:", isValid);
     alert(`Signature is valid: ${isValid}`);
   };
 
