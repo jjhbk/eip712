@@ -1,71 +1,55 @@
-// SPDX-License-Identifier: MIT
+//SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-contract EIP712Verifier {
-    string private constant SIGNING_DOMAIN = "EIP712Domain";
-    string private constant SIGNATURE_VERSION = "1";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 
-    struct EIP712Message {
-        address from;
-        string message;
+contract EIP712_Example is EIP712{
+        
+    /// @dev For this contract it should always be keccak256("Ticket(string eventName,uint256 price,address signedBy)")
+    /// @dev but we are assigning the value in the constructor for the sake of learning    
+    bytes32 immutable typedDataHash;
+
+    constructor(string memory domainName, string memory signatureVersion, bytes32 typedDataHash_) EIP712(domainName,signatureVersion) {
+        typedDataHash = typedDataHash_;        
+    }    
+    
+    /// @notice Represents an off-chain ticket for an event
+    struct Ticket {
+        string eventName; // The name of the event
+        uint256 price; // The price (in wei) of the event
     }
 
-    bytes32 private constant TYPE_HASH = keccak256("EIP712Message(address from,string message)");
+    /// Returns the address of the signer of that the ticket
+    /// @param eventName The name of the event
+    /// @param price  The price (in wei) of the event
+    /// @param signature The ticket seller signature
+    function getSigner( string calldata eventName, uint256 price, bytes memory signature) public view returns (address){
+        Ticket memory ticket = Ticket(eventName,price);        
+        address signer = _verify(ticket, signature);                
+        return signer;
+    }
 
-    bytes32 private DOMAIN_SEPARATOR;
+    /// @notice Verifies the signature for a given Ticket, returning the address of the signer.
+    /// @dev Will revert if the signature is invalid.    
+    /// @param ticket A ticket describing an event
+    /// @param signature The ticket seller signature
+    function _verify(Ticket memory ticket, bytes memory signature) internal view returns (address){
+        bytes32 digest = _hashTypedData(ticket);
+        return ECDSA.recover(digest, signature);
+    }
 
-    constructor() {
-        DOMAIN_SEPARATOR = keccak256(
-            abi.encode(
-                keccak256(bytes(SIGNING_DOMAIN)),
-                keccak256(bytes(SIGNATURE_VERSION)),
-                block.chainid,
-                address(this)
+    /// @notice Returns a hash of a given Ticket, prepared using EIP712 typed data hashing rules.    
+    /// @param ticket A ticket describing an event
+    function _hashTypedData(Ticket memory ticket) internal view returns (bytes32){
+        return _hashTypedDataV4(
+            keccak256(
+                abi.encode(
+                    typedDataHash, // keccak hash of typed data
+                    keccak256(bytes(ticket.eventName)), // encoding string to get its hash 
+                    ticket.price //uint value                    
+                )
             )
-        );
-    }
-
-    function getMessageHash(EIP712Message memory message) public pure returns (bytes32) {
-        return keccak256(abi.encode(TYPE_HASH, message.from, keccak256(bytes(message.message))));
-    }
-
-    function verify(
-        address signer,
-        EIP712Message memory message,
-        bytes memory signature
-    ) public view returns (bool) {
-        bytes32 digest = keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                DOMAIN_SEPARATOR,
-                getMessageHash(message)
-            )
-        );
-        return recoverSigner(digest, signature) == signer;
-    }
-
-    function recoverSigner(bytes32 digest, bytes memory signature) public pure returns (address) {
-        (bytes32 r, bytes32 s, uint8 v) = splitSignature(signature);
-        return ecrecover(digest, v, r, s);
-    }
-
-    function splitSignature(bytes memory sig)
-        public
-        pure
-        returns (
-            bytes32 r,
-            bytes32 s,
-            uint8 v
-        )
-    {
-        require(sig.length == 65, "invalid signature length");
-
-        assembly {
-            r := mload(add(sig, 32))
-            s := mload(add(sig, 64))
-            v := byte(0, mload(add(sig, 96)))
-        }
-
-        return (r, s, v);
+        );              
     }
 }

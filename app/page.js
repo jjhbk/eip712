@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { ethers } from 'ethers';
 import EIP712Verifier from '../artifacts/contracts/EIP712Verifier.sol/EIP712Verifier.json';
 
-const verifierAddress = '0xB71D2Aa7382f1957cddC355DA316C5191ad58e8F';
+const verifierAddress = '0xa34044262cC9Dad5791ED5bC8cD4AAf641829DB7';
 
 const Home = () => {
   const [provider, setProvider] = useState(null);
@@ -33,22 +33,22 @@ const Home = () => {
     console.log((await provider.getNetwork()).chainId)
     if (signer) {
       const domain = {
-        name: 'EIP712Domain', //Unique domain
+        name: 'Cartesi', //Unique domain
         version: '1', //version of the signatures
         chainId: (await provider.getNetwork()).chainId,
         verifyingContract: verifierAddress,
       };
       // Schema for the messages defined for our application
       const types = {
-        EIP712Message: [
-          { name: 'from', type: 'address' },
-          { name: 'message', type: 'string' },
+        Ticket: [
+          { name: 'eventName', type: 'string' },
+          { name: 'price', type: 'uint256' },
         ],
       };
 
       const value = {
-        from: account,
-        message: message,
+        eventName: message,
+        price: BigInt(1)
       };
       console.log("Domain:", domain);
       console.log("Types:", types);
@@ -65,9 +65,9 @@ const Home = () => {
   const verifyMessage = async () => {
     const contract = new ethers.Contract(verifierAddress, EIP712Verifier.abi, provider);
     //    console.log(contract);
-    const isValid = await contract.verify(account, { from: account, message: message }, signature);
-    console.log("Verification result:", isValid);
-    alert(`Signature is valid: ${isValid}`);
+    const resolvedAddress = await contract.getSigner(message, BigInt(1), signature);
+    console.log("Verification result:", resolvedAddress, account);
+    alert(`Signature is valid: ${ethers.getAddress(resolvedAddress) === ethers.getAddress(account)}`);
   };
 
   return (
