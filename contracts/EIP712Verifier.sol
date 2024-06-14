@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 contract EIP712_Example is EIP712{
         
  
-    bytes32 immutable typedDataHash= keccak256("SigningMessage(address app,uint256 nonce,uint256 max_gas_price,bytes data");
+    bytes32 immutable typedDataHash= keccak256("SigningMessage(address app,uint256 nonce,uint256 max_gas_price,bytes data)");
 
     constructor(string memory domainName, string memory signatureVersion) EIP712(domainName,signatureVersion) {
     }    
@@ -20,7 +20,7 @@ contract EIP712_Example is EIP712{
     }
 
 
-    function getSigner( address app, uint256 nonce,uint256 gasprice, bytes calldata data, bytes memory signature) public view returns (address){
+    function getSigner( address app, uint256 nonce,uint256 gasprice, bytes memory data, bytes memory signature) public view returns (address){
         SigningMessage memory message = SigningMessage(app,nonce,gasprice,data);        
         address signer = _verify(message, signature);                
         return signer;
@@ -38,10 +38,10 @@ contract EIP712_Example is EIP712{
             keccak256(
                 abi.encode(
                     typedDataHash, // keccak hash of typed data
-                    message.app, // encoding string to get its hash 
+                    message.app,
                     message.nonce,
                     message.max_gas_price,
-                    keccak256((message.data)) //uint value                    
+                    keccak256(message.data) //uint value                    
                 )
             )
         );              
