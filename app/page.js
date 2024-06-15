@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { ethers } from 'ethers';
 import EIP712Verifier from '../artifacts/contracts/EIP712Verifier.sol/EIP712Verifier.json';
-
+import styles from './button.module.css';
 const verifierAddress = "0x6F45DDbDd6285B09a8421d5F859991B0511862C2";
 //"0xcaF1f4e04486faFEee55A633E818b5Bf1bC7Ab1D";
 //"0x848eb1a4977948109fa366a43107dc5d30a6668a"
@@ -16,9 +16,10 @@ const Home = () => {
   const [app, setApp] = useState('0x00Ea57108199F042EDe48CF3D4D555F8d7Af274A');
   const [nonce, setnonce] = useState(126);
   const [gasprice, setgasprice] = useState(1);
+  const [signingMessage, setSigningMessage] = useState({ message: "", signature: "" })
   let utfencode = new TextEncoder();
   const [data, setdata] = useState('hello');
-
+  const APIURL = "http://localhost:3001/transaction";
   const [signature, setSignature] = useState('');
   useEffect(() => {
     if (window.ethereum) {
@@ -58,8 +59,8 @@ const Home = () => {
 
       const value = {
         app: app,
-        nonce: BigInt(nonce),
-        max_gas_price: BigInt(gasprice),
+        nonce: (nonce),
+        max_gas_price: (gasprice),
         data: utfencode.encode(data)
 
       };
@@ -68,6 +69,7 @@ const Home = () => {
       console.log("Value:", value);
       const sig = await signer.signTypedData(domain, types, value);
       setSignature(sig);
+      setSigningMessage({ message: value, signature: sig });
       console.log(sig);
     }
   };
@@ -80,10 +82,38 @@ const Home = () => {
     alert(`Signature is valid: ${ethers.getAddress(resolvedAddress) === ethers.getAddress(account)}`);
   };
 
+  const sendMessage = async () => {
+    console.log(signingMessage);
+    const options = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json' // Set content type to JSON
+      },
+      body: JSON.stringify(signingMessage) // Convert JSON data to a string and set it as the request body
+    };
+    fetch(APIURL, options)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log(data);
+        alert(data);
+      })
+      .catch(error => {
+        console.error('Fetch error:', error);
+      });
+  }
+
   return (
     <div>
       <h1>EIP-712 Signing with MetaMask</h1>
-      <div>
+      <div
+      >
+        <h2>App:</h2>
+
         <textarea
           value={app}
           onChange={(e) => setApp(e.target.value)}
@@ -111,14 +141,19 @@ const Home = () => {
           placeholder="Enter a data"
         />
       </div>
-      <button onClick={signMessage}>Sign Message</button>
-      <button onClick={verifyMessage}>Verify Signature</button>
+      <button className={styles.button} onClick={signMessage}>Sign Message</button>
+
+      <button className={styles.button} onClick={verifyMessage}>Verify Signature</button>
       <div>
         <p>Account: {account}</p>
         <p>Signature: {signature}</p>
       </div>
+      <br></br>
+      <button className={styles.button} onClick={sendMessage}>Send Message</button>
+
     </div>
   );
 };
+
 
 export default Home;
